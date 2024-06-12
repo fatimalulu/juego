@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recolecta Letras</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        .info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: black;
+            font-size: 20px;
+        }
+        .pista {
+            position: absolute;
+            top: 50px;
+            left: 10px;
+            color: black;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="miCanvas"></canvas>
+    <div class="info" id="info"></div>
+    <div class="pista" id="pista"></div>
+    <script>
+        const canvas = document.getElementById('miCanvas');
+        const ctx = canvas.getContext('2d');
+        let canvasWidth = window.innerWidth;
+        let canvasHeight = window.innerHeight;
+        const personajeWidth = 150;
+        const personajeHeight = 150;
+        let personajeX = canvasWidth / 2 - personajeWidth / 2;
+        let personajeY = canvasHeight - personajeHeight - 10;
+        const velocidad = 5;
+        let puntaje = 1000; // Puntaje inicial
+        const palabrasYpistas = [
+            { palabra: "PRINCESA", pista: "Miembro de la realeza femenina" },
+            { palabra: "DRAGON", pista: "Criatura mitológica que escupe fuego" },
+            { palabra: "REY", pista: "Monarca masculino" },
+            { palabra: "CASTILLO", pista: "Fortaleza donde vive la realeza" },
+            { palabra: "CABALLERO", pista: "Guerrero al servicio del rey" },
+            { palabra: "HECHICERO", pista: "Persona que realiza magia" },
+            { palabra: "CORONA", pista: "Símbolo de realeza que se lleva en la cabeza" },
+            { palabra: "PRINCIPE", pista: "Hijo del rey" },
+        ];
+        let palabraSeleccionada = palabrasYpistas[Math.floor(Math.random() * palabrasYpistas.length)];
+        let palabraCompleta = palabraSeleccionada.palabra;
+        let pista = palabraSeleccionada.pista;
+        let palabraAdivinada = "_".repeat(palabraCompleta.length);
+        const letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const letrasFalling = [];
+        const letraSize = 20;
+
+        const personajeImg = new Image();
+        personajeImg.src = 'principe.png';
+
+        const fondoImg = new Image();
+        fondoImg.src = 'b.jpg';
+
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+
+        function ajustarCanvas() {
+            canvasWidth = window.innerWidth;
+            canvasHeight = window.innerHeight;
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+        }
+
+        window.addEventListener('resize', ajustarCanvas);
+
+        function dibujarFondo() {
+            ctx.drawImage(fondoImg, 0, 0, canvasWidth, canvasHeight);
+        }
+
+        function dibujarPersonaje() {
+            ctx.drawImage(personajeImg, personajeX, personajeY, personajeWidth, personajeHeight);
+        }
+
+        function moverPersonaje(event) {
+            switch (event.key) {
+                case 'ArrowLeft':
+                    personajeX = Math.max(personajeX - velocidad, 0);
+                    break;
+                case 'ArrowRight':
+                    personajeX = Math.min(personajeX + velocidad, canvasWidth - personajeWidth);
+                    break;
+                case 'ArrowUp':
+                    personajeY = Math.max(personajeY - velocidad, 0);
+                    break;
+                case 'ArrowDown':
+                    personajeY = Math.min(personajeY + velocidad, canvasHeight - personajeHeight);
+                    break;
+            }
+        }
+
+        window.addEventListener('keydown', moverPersonaje);
+
+        function generarLetraFalling() {
+            const letra = letras[Math.floor(Math.random() * letras.length)];
+            const x = Math.random() * (canvasWidth - letraSize);
+            const y = 0;
+            letrasFalling.push({ letra, x, y });
+        }
+
+        setInterval(generarLetraFalling, 1000);
+
+        function moverLetrasFalling() {
+            letrasFalling.forEach((letra, index) => {
+                letra.y += velocidad / 2;
+                if (letra.y > canvasHeight) {
+                    letrasFalling.splice(index, 1);
+                }
+            });
+        }
+
+        function dibujarLetrasFalling() {
+            ctx.fillStyle = "red";
+            ctx.font = `${letraSize}px Arial`;
+            letrasFalling.forEach(letra => {
+                ctx.fillText(letra.letra, letra.x, letra.y);
+            });
+        }
+
+        function verificarColision() {
+            letrasFalling.forEach((letra, index) => {
+                if (
+                    personajeX < letra.x + letraSize &&
+                    personajeX + personajeWidth > letra.x &&
+                    personajeY < letra.y + letraSize &&
+                    personajeY + personajeHeight > letra.y
+                ) {
+                    if (palabraCompleta.includes(letra.letra)) {
+                        actualizarPalabraAdivinada(letra.letra);
+                        if (palabraAdivinada === palabraCompleta) {
+                            // Si se adivina la palabra completa, mostrar mensaje de victoria
+                            mostrarMensajeVictoria();
+                            reiniciarJuego();
+                        }
+                    } else {
+                        puntaje -= 100; // Se resta 100 puntos por cada letra mal comida
+                        if (puntaje < 100) {
+                            // Si el puntaje es menor a 100, mostrar mensaje de pérdida
+                            mostrarMensajePerdida();
+                            reiniciarJuego();
+                        }
+                    }
+                    letrasFalling.splice(index, 1);
+                }
+            });
+        }
+
+        function actualizarPalabraAdivinada(letra) {
+            let nuevaPalabra = "";
+            for (let i = 0; i < palabraCompleta.length; i++) {
+                if (palabraCompleta[i] === letra || palabraAdivinada[i] !== "_") {
+                    nuevaPalabra += palabraCompleta[i];
+                } else {
+                    nuevaPalabra += "_";
+                }
+            }
+            palabraAdivinada = nuevaPalabra;
+        }
+
+        function dibujarInfo() {
+            const infoDiv = document.getElementById("info");
+            infoDiv.textContent = `Puntaje: ${puntaje} | Palabra: ${palabraAdivinada}`;
+        }
+
+        function dibujarPista() {
+            const pistaDiv = document.getElementById("pista");
+            pistaDiv.textContent = "Pista: " + pista;
+        }
+
+        function limpiarCanvas() {
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+        }
+
+        function reiniciarJuego() {
+            puntaje = 1000; // Reiniciar puntaje a 1000
+            palabraSeleccionada = palabrasYpistas[Math.floor(Math.random() * palabrasYpistas.length)];
+            palabraCompleta = palabraSeleccionada.palabra;
+            pista = palabraSeleccionada.pista;
+            palabraAdivinada = "_".repeat(palabraCompleta.length);
+            letrasFalling.length = 0;
+        }
+
+        function mostrarMensajePerdida() {
+            alert("¡Has perdido! Tu puntaje es demasiado bajo.");
+        }
+
+        function mostrarMensajeVictoria() {
+            alert("¡Felicidades! Has adivinado la palabra.");
+        }
+
+        function actualizarJuego() {
+            limpiarCanvas();
+            dibujarFondo();
+            dibujarPersonaje();
+            moverLetrasFalling();
+            dibujarLetrasFalling();
+            dibujarInfo();
+            dibujarPista();
+            verificarColision();
+        }
+
+        setInterval(actualizarJuego, 1000 / 60);
+    </script>
+</body>
+</html>
+
+
+
+
